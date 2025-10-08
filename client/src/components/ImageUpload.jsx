@@ -1,60 +1,85 @@
 import React, { useState } from "react";
 
-const ImageUpload = ({ onAnalyze }) => {
-  const [image, setImage] = useState(null);
-  const [preview, setPreview] = useState(null);
+const ImageUpload = () => {
+  const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME; // just the name
+  const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [uploadedUrl, setUploadedUrl] = useState(null);
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImage(file);
-      setPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const handleUpload = () => {
-    if (!image) {
+  const handleUpload = async () => {
+    if (!selectedImage) {
       alert("Please select an image first!");
       return;
     }
 
-    // Simulated AI result
-    const randomResult =
-      Math.random() < 0.5 ? "✅ Safe Image" : "🚫 Offensive Content Detected";
-    onAnalyze(randomResult);
+    setLoading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedImage);
+      formData.append("upload_preset", UPLOAD_PRESET);
+
+      // Correct Cloudinary endpoint
+      const res = await fetch(CLOUD_NAME, {
+        method: "POST",
+        body: formData,
+      }).then((res) => res.json());
+
+      const data = await res.json();
+
+      if (data.error) {
+        console.error("Cloudinary error:", data.error);
+        alert("Image upload failed: " + data.error.message);
+      } else {
+        setUploadedUrl(data.secure_url);
+        alert("Image uploaded successfully!");
+      }
+    } catch (error) {
+      console.error("Upload failed:", error);
+      alert("Image upload failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <section className="py-12 bg-blue-900 text-center">
-      <h2 className="text-2xl font-semibold mb-4 text-white">
-        Upload Image for Analysis
-      </h2>
-
-      <div className="flex flex-col items-center">
+    <div className="flex flex-col justify-center items-center mt-12 mb-16 px-4">
+      <div className="p-8 bg-gray-900/70 rounded-xl shadow-2xl w-full max-w-4xl text-white text-center border border-blue-500/50">
+        <h2 className="text-2xl font-bold mb-6 text-blue-300">Upload Image</h2>
         <input
           type="file"
           accept="image/*"
-          onChange={handleFileChange}
-          className="border-2 border-blue-600 rounded-lg p-2 w-64 text-white cursor-pointer"
+          onChange={(e) => setSelectedImage(e.target.files[0])}
+          className="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-500 file:text-white hover:file:bg-blue-600 mb-6 cursor-pointer"
         />
-
-        {preview && (
-          <img
-            src={preview}
-            alt="Preview"
-            className="mt-4 w-64 h-64 object-cover rounded-lg shadow-md"
-          />
-        )}
-
         <button
           onClick={handleUpload}
-          className="mt-5 px-6 py-2 bg-white text-black rounded-md hover:bg-yellow-300 transition-all"
+          disabled={loading}
+          className={`bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-8 rounded-full transition duration-300 shadow-lg ${
+            loading ? "opacity-50 cursor-not-allowed" : ""
+          }`}
         >
-          Analyze
+          {loading ? "Uploading..." : "Upload Image"}
         </button>
+
+        {uploadedUrl && (
+          <div className="mt-6">
+            <p className="mb-2">Uploaded Image URL:</p>
+            <a
+              href={uploadedUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-400 underline break-all"
+            >
+              {uploadedUrl}
+            </a>
+          </div>
+        )}
       </div>
-    </section>
+    </div>
   );
 };
 
 export default ImageUpload;
+  
